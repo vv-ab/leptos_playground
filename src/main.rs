@@ -1,5 +1,8 @@
 mod app;
 mod vec2d;
+mod geometrical_figure;
+mod line_chart;
+mod example;
 
 use leptos::*;
 
