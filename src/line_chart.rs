@@ -5,14 +5,19 @@ use nalgebra::{Matrix2, point, Point2, Vector2};
 #[component]
 pub fn LineChart(cx: Scope) -> impl IntoView {
 
-    let data = vec![
-        (0.0, 0.0),
-        (1.66, 2.44),
-        (5.0, 1.0),
-        (6.4, 5.0),
-        (10.0, 3.8),
-        (16.9, 5.3)
-    ];
+    let data = {
+        let mut data = vec![
+            (-10.0, 0.0),
+            (-1.66, 2.44),
+            (5.0, 1.0),
+            (6.4, 5.0),
+            (-8.0, 3.8),
+            (1.9, 5.3)
+        ];
+        data.sort_by(|(ax, _), (bx, _)| ax.partial_cmp(bx).unwrap());
+        data
+    };
+
     let max_x = data.iter().map(|(x, _)| *x).reduce(f32::max).unwrap();
     let max_y = data.iter().map(|(_, y)| *y).reduce(f32::max).unwrap();
     let min_x = data.iter().map(|(x, _)| *x).reduce(f32::min).unwrap();
