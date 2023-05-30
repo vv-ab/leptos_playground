@@ -1,9 +1,16 @@
+use futures::SinkExt;
 use leptos::*;
+use leptos::ev::MouseEvent;
 use leptos::svg::Text;
 use nalgebra::{Matrix2, point, Point2, Vector2};
 
 #[component]
 pub fn LineChart(cx: Scope) -> impl IntoView {
+
+    let crosshair_position = create_rw_signal(cx, Point2::new(0.0, 0.0));
+    let crosshair_enabled = create_rw_signal(cx, false);
+
+    log::info!("init");
 
     let data = {
         let mut data = vec![
@@ -85,8 +92,41 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
             })
             .collect::<Vec<_>>();
 
+    let crosshair = move || {
+        crosshair_position.with(|position| {
+            if crosshair_enabled.get_untracked() {
+                let x = if position.x > (width - padding) {
+                    width - padding
+                } else if position.x < padding {
+                    padding
+                } else {
+                    position.x
+                };
+                let y = if position.y > (height - padding) {
+                    height - padding
+                } else if position.y < padding {
+                    padding
+                } else {
+                    position.y
+                };
+                let non_scaled_value =  scale.try_inverse().unwrap() * (Point2::new(x, y)  - translation) ;
+                Some(view! {cx,
+                    <line x1=padding y1=y x2=(width - padding) y2=y stroke="grey"></line>
+                    <line x1=x y1=padding x2=x y2=(height - padding) stroke="grey"></line>
+                    <text x=padding y=(0.5 * padding) style="font-size: 10px" stroke="grey">{format!("{:.2}/{:.2}", non_scaled_value.x, non_scaled_value.y)}</text>
+                })
+            }
+            else {
+                None
+            }
+        })
+    };
+
     view! {cx,
-        <svg width=width height=height>
+        <svg width=width height=height on:mousemove=move |event: MouseEvent| {
+            crosshair_enabled.set(event.ctrl_key());
+            crosshair_position.set(Point2::new(event.offset_x() as f32, event.offset_y() as f32));
+        }>
             <rect width=width height=height fill="none" stroke="black"></rect>
             <path id="YAxis" fill="none" d="M500,0 L500,-500 z"></path>
             <text stroke="black">
@@ -96,6 +136,7 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
             {circles}
             {label_x}
             {label_y}
+            {crosshair}
             <rect width=move || width - 2.0 * padding height= move || height - 2.0 * padding x=padding y=padding fill="none" stroke="black"></rect>
         </svg>
     }
