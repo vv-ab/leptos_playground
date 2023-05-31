@@ -10,8 +10,6 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
     let crosshair_position = create_rw_signal(cx, Point2::new(0.0, 0.0));
     let crosshair_enabled = create_rw_signal(cx, false);
 
-    log::info!("init");
-
     let data = {
         let mut data = vec![
             (-10.0, 0.0),
@@ -50,12 +48,38 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
         (scale * point) + translation
     }).collect::<Vec<Point2<f32>>>();
 
-    let circles = points.iter().zip(data).map(|(point, (x, y))| {
-        view! {cx,
-            <circle cx=point.x cy=point.y r="3" fill="red"></circle>
-            // <text x=point.x y=point.y>{format!("{:.2},{:.2} ~ {:.2},{:.2}", point.x, point.y, x, y)}</text>
-        }
-    }).collect::<Vec<_>>();
+    let circle_data = {
+        let data = points.iter().zip(data).enumerate().map(|(index, (point, (x, y)))| {
+            ChartCircleData {
+                x_value: x,
+                y_value: y,
+                position: *point,
+                selected: false,
+            }
+        }).collect::<Vec<ChartCircleData>>();
+        create_rw_signal(cx, data)
+    };
+
+    let circles = move || {
+        circle_data.with(|circles| {
+            circles.iter().cloned().enumerate().map(|(index, data)| {
+                view! {cx,
+                    <ChartCircle data=data on_select=move || {
+                        circle_data.update(|circles| {
+                            circles.iter_mut().enumerate().for_each(|(i, circle)| {
+                                if i == index {
+                                    circle.selected = true;
+                                }
+                                else {
+                                    circle.selected = false;
+                                }
+                            });
+                        });
+                    }></ChartCircle>
+                }
+            }).collect::<Vec<_>>()
+        })
+    };
 
     let lines = points.iter().take(points.len() - 1).zip(points.iter().skip(1)).map(|(start_point, end_point)| {
         view! {cx,
@@ -139,6 +163,29 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
             {crosshair}
             <rect width=move || width - 2.0 * padding height= move || height - 2.0 * padding x=padding y=padding fill="none" stroke="black"></rect>
         </svg>
+    }
+}
+
+#[derive(Clone)]
+struct ChartCircleData {
+    x_value: f32,
+    y_value: f32,
+    position: Point2<f32>,
+    selected: bool,
+}
+
+#[component]
+fn chart_circle<A>(cx: Scope, data: ChartCircleData, on_select: A) -> impl IntoView
+where A: Fn() -> () + 'static {
+    let radius = if data.selected {
+        10
+    }
+    else {
+        5
+    };
+    view! {cx,
+        <circle cx=data.position.x cy=data.position.y r=radius fill="red" on:click=move |event| { on_select() }>
+        </circle>
     }
 }
 
