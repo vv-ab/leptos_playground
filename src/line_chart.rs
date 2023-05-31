@@ -64,11 +64,11 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
         circle_data.with(|circles| {
             circles.iter().cloned().enumerate().map(|(index, data)| {
                 view! {cx,
-                    <ChartCircle data=data on_select=move || {
+                    <ChartCircle data=data on_select=move |is_selected| {
                         circle_data.update(|circles| {
                             circles.iter_mut().enumerate().for_each(|(i, circle)| {
                                 if i == index {
-                                    circle.selected = true;
+                                    circle.selected = is_selected;
                                 }
                                 else {
                                     circle.selected = false;
@@ -137,7 +137,7 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
                 Some(view! {cx,
                     <line x1=padding y1=y x2=(width - padding) y2=y stroke="grey"></line>
                     <line x1=x y1=padding x2=x y2=(height - padding) stroke="grey"></line>
-                    <text x=padding y=(0.5 * padding) style="font-size: 10px" stroke="grey">{format!("{:.2}/{:.2}", non_scaled_value.x, non_scaled_value.y)}</text>
+                    <text x=padding y={padding - 5.0} style="font-size: 13px" fill="grey">{format!("{:.2}/{:.2}", non_scaled_value.x, non_scaled_value.y)}</text>
                 })
             }
             else {
@@ -176,16 +176,40 @@ struct ChartCircleData {
 
 #[component]
 fn chart_circle<A>(cx: Scope, data: ChartCircleData, on_select: A) -> impl IntoView
-where A: Fn() -> () + 'static {
+where A: Fn(bool) -> () + 'static + Copy {
+
     let radius = if data.selected {
-        10
+        10.0
     }
     else {
-        5
+        5.0
     };
+
+    let info = move || {
+
+        if data.selected {
+            let rect_position = data.position + Vector2::new(1.5 * radius, 0.0);
+            let text_position = rect_position + Vector2::new(10.0, 10.0);
+
+            Some(view! {cx,
+                <rect width="120" height="3.7em" x=rect_position.x y=rect_position.y rx=3 fill="#260D41" stroke="#260D41"></rect>
+                <text dominant-baseline="hanging" x=text_position.x y=text_position.y fill="white">
+                    <tspan x=text_position.x dy="0em">{format!("Date: {:.3}", data.x_value)}</tspan>
+                    <tspan x=text_position.x dy="1.7em">{format!("Data: {:.3}", data.y_value)}</tspan>
+                </text>
+            })
+        }
+        else {
+            None
+        }
+    };
+
     view! {cx,
-        <circle cx=data.position.x cy=data.position.y r=radius fill="red" on:click=move |event| { on_select() }>
+        <circle cx=data.position.x cy=data.position.y r=radius fill="red"
+            on:mouseenter=move |_| { on_select(true) }
+            on:mouseleave=move |_| { on_select(false) }>
         </circle>
+        {info}
     }
 }
 
