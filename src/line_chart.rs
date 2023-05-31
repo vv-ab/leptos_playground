@@ -51,6 +51,8 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
     let circle_data = {
         let data = points.iter().zip(data).enumerate().map(|(index, (point, (x, y)))| {
             ChartCircleData {
+                chart_width: width,
+                chart_height: height,
                 x_value: x,
                 y_value: y,
                 position: *point,
@@ -152,22 +154,21 @@ pub fn LineChart(cx: Scope) -> impl IntoView {
             crosshair_position.set(Point2::new(event.offset_x() as f32, event.offset_y() as f32));
         }>
             <rect width=width height=height fill="none" stroke="black"></rect>
-            <path id="YAxis" fill="none" d="M500,0 L500,-500 z"></path>
-            <text stroke="black">
-                <textPath href="#YAxis">"Wasserstand"</textPath>
-            </text>
+            <rect width=move || width - 2.0 * padding height= move || height - 2.0 * padding x=padding y=padding fill="none" stroke="black"></rect>
+
             {lines}
-            {circles}
             {label_x}
             {label_y}
+            {circles}
             {crosshair}
-            <rect width=move || width - 2.0 * padding height= move || height - 2.0 * padding x=padding y=padding fill="none" stroke="black"></rect>
         </svg>
     }
 }
 
 #[derive(Clone)]
 struct ChartCircleData {
+    chart_width: f32,
+    chart_height: f32,
     x_value: f32,
     y_value: f32,
     position: Point2<f32>,
@@ -188,11 +189,24 @@ where A: Fn(bool) -> () + 'static + Copy {
     let info = move || {
 
         if data.selected {
-            let rect_position = data.position + Vector2::new(1.5 * radius, 0.0);
-            let text_position = rect_position + Vector2::new(10.0, 10.0);
+            let rect_width = 120.0;
+            let rect_height = 64.0;
+            let rect_offset = Vector2::new(1.5 * radius, 0.0);
+            let text_offset = Vector2::new(10.0, 10.0);
+            let mut rect_position = data.position + rect_offset;
+
+            if (rect_position.x + rect_width) >= data.chart_width {
+                rect_position = data.position - rect_offset - Vector2::new(rect_width, 0.0);
+            }
+
+            if (rect_position.y + rect_height) >= data.chart_height {
+                rect_position = data.position + rect_offset - Vector2::new(0.0, rect_height);
+            }
+
+            let text_position = rect_position + text_offset;
 
             Some(view! {cx,
-                <rect width="120" height="3.7em" x=rect_position.x y=rect_position.y rx=3 fill="#260D41" stroke="#260D41"></rect>
+                <rect width=rect_width height=rect_height x=rect_position.x y=rect_position.y rx=3 opacity="80%" fill="#260D41" stroke="#260D41"></rect>
                 <text dominant-baseline="hanging" x=text_position.x y=text_position.y fill="white">
                     <tspan x=text_position.x dy="0em">{format!("Date: {:.3}", data.x_value)}</tspan>
                     <tspan x=text_position.x dy="1.7em">{format!("Data: {:.3}", data.y_value)}</tspan>
